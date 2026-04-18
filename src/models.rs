@@ -6,3 +6,7 @@ pub struct Task {
     pub testo: String,
     pub completato: bool,
 }
+
+impl Task{
+    
+}

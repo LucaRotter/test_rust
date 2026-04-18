@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1,
+    "testo": "fare la spesa",
+    "completato": false
+  },
+  {
+    "id": 2,
+    "testo": "portare la fede al sushi",
+    "completato": false
+  }
+]

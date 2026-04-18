@@ -32,7 +32,7 @@ fn chiedi_comando_base() -> u32 {
         let mut com: String = String::new();
         io::stdin().read_line(&mut com).unwrap();
         match com.trim().parse::<u32>() {
-            Ok(num) => return (num),
+            Ok(num) => break num,
             Err(_) => println!("Errore: Inserisci un numero intero, per favore."),
         }
     }
@@ -58,45 +58,60 @@ fn aggiungi_task(lista_task: &mut Vec<Task>) {
 fn visualizza_task(lista_task: &mut Vec<Task>) {
     if lista_task.is_empty() {
         println!("Non ci sono task da visualizzare.");
+        return;
     } else {
-        println!("Ecco le task da fare:");
+        println!("Ecco tutte le task:");
         for task in lista_task.iter() {
             println!("ID: {}, Testo: {}, Completato: {}", task.id, task.testo, task.completato);
         }
     }
+    println!("");
     println!("vuoi modificare lo stato di qualche task? (s/n)");
     let mut risposta = String::new();
     io::stdin().read_line(&mut risposta).unwrap();
     match risposta.trim().to_lowercase().as_str() {
         "s" => modifica_stato_task(lista_task),
-        "n" => println!("Nessuna modifica alle task."),
+        "n" => {
+            println!("Nessuna modifica alle task... torno al menu"); 
+        },
         _ => println!("Risposta non valida, nessuna modifica alle task."),
     };
 }
 fn modifica_stato_task(lista_task: &mut Vec<Task>) {
     println!("inserisci l'ID della task da modificare:");
-    let mut id_input_dacercare: u32 = 0;
-
+    let mut id_input_dacercare: u32=0;
+    let mut trovato: bool = false;
     loop{
         let mut id_input = String::new();
         io::stdin().read_line(&mut id_input).unwrap();
 
         match id_input.trim().parse::<u32>() {
             Ok(num) => {
-                id_input_dacercare = num;
+                for task in lista_task.iter(){
+                    if task.id == num{
+                        trovato = true;
+                        id_input_dacercare = num;
+                        break;
+                    }
+                }
                 break;
             }
             Err(_) => println!("Errore: Inserisci un numero intero valido per l'ID, per favore."),
         }
     }
-
+    if trovato == true {
+        modifica_stato_taskID(id_input_dacercare, lista_task);
+    }
+}
+fn modifica_stato_taskID(id_input_dacercare: u32, lista_task: &mut Vec<Task>){
+    println!("l'id da cercare è {}", id_input_dacercare);
     for task in lista_task.iter_mut(){
         let mut flag: bool = false;
         if task.id == id_input_dacercare {
             flag = true;
             let comp: bool = task.completato;
             if comp == false {
-                println!("la task con ID {} è attualmente incompleta, vuoi completarla? (s/n)", task.id);ù
+                println!("la task con ID {} è attualmente incompleta, vuoi completarla? (s/n)", task.id);
                 let mut risposta: String = String::new();
                 io::stdin().read_line(&mut risposta).unwrap();
                 match risposta.trim().to_lowercase().as_str() {
@@ -127,6 +142,8 @@ fn modifica_stato_task(lista_task: &mut Vec<Task>) {
         println!("Errore, Non esiste nessuna task con ID {}.", id_input_dacercare);
     }
 }
+}
+
 fn caricamento_da_file() -> Vec<Task> {
     let nome_file: &str = "tasks.json";
     //lettura normale del file in testo
@@ -151,8 +168,11 @@ fn caricamento_da_file() -> Vec<Task> {
 
 fn scrittura_su_file(lista: &Vec<Task>){
     // Il vettore di struct Task viene trasformato in una String (testo JSON)
+    println!("**********************************");
+    println!("aggiorno le task...");
+    println!("**********************************");
     let json = serde_json::to_string_pretty(lista).expect("errore nella deserializzazione");
     let mut file = File::create("tasks.json").expect("Errore creazione file");
-    let mut file = File::create("tasks.json").expect("Errore creazione file");
+    file.write_all(json.as_bytes()).expect("Errore durante la scrittura");
 }
 
