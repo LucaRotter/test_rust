@@ -10,3 +10,11 @@ pub struct Task {
 impl Task{
     
 }
+
+#[derive(Debug)]
+pub enum TaskError{
+    IoError(std::io::Error),
+    SerdeError(serde_json::Error),
+    NotFound(u32),
+    InvalidInput,
+}

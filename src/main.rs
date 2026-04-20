@@ -1,11 +1,22 @@
 mod models;
 use models::Task;
+use models::TaskError;
+use std::f32::consts::E;
 use std::fs;
 use std::io;
 use std::fs::File;
 use std::io::Write;
 fn main() {
-    let mut lista_task: Vec<Task> = caricamento_da_file();
+    let mut lista_task: Vec<Task> = match caricamento_da_file() {
+        Ok(task) => {
+            println!("Dati caricati con successo!");
+            task
+        },
+        Err(e) => {
+            eprintln!("Errore durante il caricamento delle task ");
+            Vec::new()
+        }
+    };
     loop{
     //chiedi all'utente cosa vuole fare
     let comando: u32 = chiedi_comando_base();
@@ -15,8 +26,11 @@ fn main() {
         1 => visualizza_task(&mut lista_task),
         2 => {
             println!("termine programma, arrivederci! :)"); 
-            scrittura_su_file(&lista_task);    
-            break;},
+            if let Err(e) = scrittura_su_file(&lista_task) {
+                eprintln!("Errore durante la scrittura sul file: {:?}" , e);
+            }
+            break;
+        },
         _ => println!("Comando non valido, ma il filtro nel loop dovrebbe averlo evitato!"),
     }
 }
@@ -103,17 +117,18 @@ fn modifica_stato_task(lista_task: &mut Vec<Task>) {
         modifica_stato_taskID(id_input_dacercare, lista_task);
     }
 }
-fn modifica_stato_taskID(id_input_dacercare: u32, lista_task: &mut Vec<Task>){
+fn modifica_stato_taskID(id_input_dacercare: u32, lista_task: &mut Vec<Task>)-> Result<(), TaskError>{
     println!("l'id da cercare è {}", id_input_dacercare);
+    let mut flag: bool = false;
     for task in lista_task.iter_mut(){
-        let mut flag: bool = false;
+        
         if task.id == id_input_dacercare {
             flag = true;
             let comp: bool = task.completato;
             if comp == false {
                 println!("la task con ID {} è attualmente incompleta, vuoi completarla? (s/n)", task.id);
                 let mut risposta: String = String::new();
-                io::stdin().read_line(&mut risposta).unwrap();
+                io::stdin().read_line(&mut risposta).map_err(TaskError::IoError)?;
                 match risposta.trim().to_lowercase().as_str() {
                     "s" => {task.completato = true;
                         println!("Task con ID {} completata!", task.id);
@@ -126,7 +141,7 @@ fn modifica_stato_taskID(id_input_dacercare: u32, lista_task: &mut Vec<Task>){
             else{
                 println!("la task con ID {} è attualmente completata, vuoi renderla incompleta? (s/n)", task.id);
                 let mut risposta: String = String::new();
-                io::stdin().read_line(&mut risposta).unwrap();
+                io::stdin().read_line(&mut risposta).map_err(TaskError::IoError)?;
                 match risposta.trim().to_lowercase().as_str() {
                     "s" => {task.completato = false;
                         println!("Task con ID {} resa incompleta!", task.id);
@@ -142,37 +157,24 @@ fn modifica_stato_taskID(id_input_dacercare: u32, lista_task: &mut Vec<Task>){
         println!("Errore, Non esiste nessuna task con ID {}.", id_input_dacercare);
     }
 }
+Ok(())
 }
 
-fn caricamento_da_file() -> Vec<Task> {
+fn caricamento_da_file() -> Result<Vec<Task>, TaskError> {
     let nome_file: &str = "tasks.json";
-    //lettura normale del file in testo
-    let contenuto_file = match fs::read_to_string(nome_file) {
-        Ok(testo) => testo,
-        Err(_) => {
-            println!("File non trovato, inizializzo una lista vuota.");
-            return Vec::new(); // Se il file non c'è, usciamo subito con un vettore vuoto
-        }
-    };
-    // La String (testo JSON) viene analizzata e trasformata in un Vec<Task>
-    let tasks: Vec<Task> = match serde_json::from_str(&contenuto_file) {
-        Ok(lista) => lista,
-        Err(e) => {
-            println!("Errore nel formato JSON: {}", e);
-            Vec::new() // In caso di file corrotto, restituiamo un vettore vuoto
-        }
-    };
-
-    tasks
+    let contenuto_file = fs::read_to_string(&nome_file).map_err(TaskError::IoError)?;
+    let tasks: Vec<Task> = serde_json::from_str(&contenuto_file).map_err(TaskError::SerdeError)?;
+    Ok(tasks)
 }
 
-fn scrittura_su_file(lista: &Vec<Task>){
+fn scrittura_su_file(lista: &Vec<Task>)-> Result<(), TaskError>{
     // Il vettore di struct Task viene trasformato in una String (testo JSON)
     println!("**********************************");
     println!("aggiorno le task...");
     println!("**********************************");
-    let json = serde_json::to_string_pretty(lista).expect("errore nella deserializzazione");
-    let mut file = File::create("tasks.json").expect("Errore creazione file");
-    file.write_all(json.as_bytes()).expect("Errore durante la scrittura");
+    let json = serde_json::to_string_pretty(lista).map_err(TaskError::SerdeError)?;
+    let mut file = File::create("tasks.json").map_err(TaskError::IoError)?;
+    file.write_all(json.as_bytes()).map_err(TaskError::IoError)?;
+    Ok(())
 }
 
